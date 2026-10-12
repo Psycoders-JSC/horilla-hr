@@ -223,7 +223,11 @@ class StageFormView(HorillaFormView):
         # recruitment to add the stage to instead, defeating the point of
         # opening the form from that tab. Lock it, mirroring
         # OffboardingStageFormView's offboarding_id widget.
-        self.form.fields["recruitment_id"].widget = forms.HiddenInput()
+        # Only lock it when a recruitment is actually known - the Stages list
+        # page opens this form without ?recruitment_id=, and hiding an empty
+        # required field made every save fail silently.
+        if rec_id or self.form.instance.pk:
+            self.form.fields["recruitment_id"].widget = forms.HiddenInput()
         if self.form.instance.pk:
             self.form_class.verbose_name = _("Edit Stage")
             self.form_class(instance=self.form.instance)
