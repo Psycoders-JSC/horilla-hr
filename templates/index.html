@@ -235,6 +235,13 @@
         document.body.addEventListener('htmx:configRequest', (event) => {
             event.detail.headers['X-CSRFToken'] = '{{ csrf_token }}';
         })
+        // Post-save scripts fire several reloads at once (#applyFilter,
+        // .reload-record); when one replaces the container holding the
+        // other's target, the late response has nowhere to land - skip it
+        // instead of throwing "parentNode is null".
+        document.body.addEventListener('htmx:beforeSwap', (event) => {
+            if (!event.detail.target.isConnected) event.detail.shouldSwap = false;
+        })
     </script>
     <!-- this is the master js  -->
     <script src="{% static '/index/index.js' %}"></script>
