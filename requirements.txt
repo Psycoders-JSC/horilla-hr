@@ -164,5 +164,8 @@ msgpack>=1.2.2,<2
 # the old one. Neither spacy nor thinc caps the version.
 setuptools==84.0.0
 
+# MCP server (python manage.py run_mcp); brings uvicorn and starlette
+mcp==1.30.0
+
 # Testing
 coverage>=7.0

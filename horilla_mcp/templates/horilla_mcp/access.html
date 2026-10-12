@@ -1,0 +1,51 @@
+{% extends 'settings.html' %}
+{% load i18n %}
+
+{% block settings %}
+<div class="mb-4">
+    <h4 class="text-base font-semibold text-[#333]">{% trans "MCP Access" %}</h4>
+    <p class="text-xs text-gray-500 mt-1">
+        {% trans "Let Claude manage candidates and employees on your behalf. Treat the token like a password." %}
+    </p>
+</div>
+
+{% if token %}
+<div class="border border-[#ebebeb] rounded-md p-4 mb-4">
+    <p class="text-sm font-semibold mb-2">{% trans "Your new token (shown once)" %}</p>
+    <div class="flex gap-2 mb-4">
+        <input id="mcpTok" readonly class="oh-input w-full" value="{{ token }}">
+        <button class="oh-btn oh-btn--secondary" onclick="mcpCopy('mcpTok')">{% trans "Copy" %}</button>
+    </div>
+
+    <p class="text-sm font-semibold mb-1">{% trans "Claude Code" %}</p>
+    <div class="flex gap-2 mb-4">
+        <input id="mcpCli" readonly class="oh-input w-full" value='{{ cli }}'>
+        <button class="oh-btn oh-btn--secondary" onclick="mcpCopy('mcpCli')">{% trans "Copy" %}</button>
+    </div>
+
+    <p class="text-sm font-semibold mb-1">{% trans "claude.ai → Settings → Connectors → Add custom connector (URL)" %}</p>
+    <div class="flex gap-2">
+        <input id="mcpUrl" readonly class="oh-input w-full" value="{{ connector_url }}">
+        <button class="oh-btn oh-btn--secondary" onclick="mcpCopy('mcpUrl')">{% trans "Copy" %}</button>
+    </div>
+</div>
+{% endif %}
+
+<form method="post" class="flex gap-2">
+    {% csrf_token %}
+    <button class="oh-btn oh-btn--secondary" formaction="{% url 'mcp-generate' %}"
+        {% if has_token and not token %}onclick="return confirm('{% trans "This replaces your current token. Continue?" %}')"{% endif %}>
+        {% if has_token %}{% trans "Regenerate token" %}{% else %}{% trans "Generate token" %}{% endif %}
+    </button>
+    {% if has_token %}
+    <button class="oh-btn oh-btn--danger" formaction="{% url 'mcp-revoke' %}">{% trans "Revoke" %}</button>
+    {% endif %}
+</form>
+
+<script>
+function mcpCopy(id) {
+    const el = document.getElementById(id);
+    navigator.clipboard.writeText(el.value);
+}
+</script>
+{% endblock %}

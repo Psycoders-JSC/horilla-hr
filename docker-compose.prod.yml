@@ -52,6 +52,38 @@ services:
     deploy:
       replicas: 1
 
+  # MCP server for AI agents (python manage.py run_mcp), token protected.
+  # Same image and .env as scheduler; put a reverse proxy in front of port 8100.
+  mcp:
+    build: .
+    command: python manage.py run_mcp
+    env_file:
+      - .env
+    environment: !override
+      DEBUG: "0"
+      HORILLA_ENV: production
+      DB_HOST: db
+      SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:?Set ALLOWED_HOSTS in .env}
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env}
+      DB_INIT_PASSWORD: ${DB_INIT_PASSWORD:?Set DB_INIT_PASSWORD in .env}
+      REDIS_URL: ${REDIS_URL:?Set REDIS_URL in .env}
+      MCP_TOKEN: ${MCP_TOKEN:?Set MCP_TOKEN in .env}
+      HORILLA_SKIP_RELEASE_TASKS: "1"
+    volumes: !override
+      - media:/app/media
+    expose:
+      - "8100"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    # the image HEALTHCHECK curls the web service on :8000; this one has none
+    healthcheck:
+      disable: true
+    restart: unless-stopped
+
   db:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-horilla_db}

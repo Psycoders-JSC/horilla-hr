@@ -33,7 +33,7 @@ from django.core import serializers
 from django.core.cache import cache as CACHE
 from django.core.mail import EmailMessage
 from django.core.paginator import Paginator
-from django.db import IntegrityError, transaction
+from django.db import transaction
 from django.db.models import Case, IntegerField, ProtectedError, Q, When
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -71,7 +71,6 @@ from horilla.decorators import (
 from horilla.group_by import group_by_queryset
 from horilla.http import HorillaRedirect
 from horilla_auth.models import HorillaUser
-from horilla_documents.models import Document
 from notifications.signals import notify
 from recruitment.auth import CandidateAuthenticationBackend
 from recruitment.decorators import (
@@ -109,7 +108,7 @@ from recruitment.forms import (
     StageNoteUpdateForm,
     ToSkillZoneForm,
 )
-from recruitment.methods import recruitment_manages
+from recruitment.methods import convert_candidate_to_employee, recruitment_manages
 from recruitment.models import (
     Candidate,
     CandidateDocument,
@@ -2112,56 +2111,11 @@ def candidate_conversion(request, cand_id, **kwargs):
             return JsonResponse({"message": "Already converted"}, status=200)
         return HorillaRedirect(request)
 
-    user_exists = HorillaUser.objects.filter(username=candidate_obj.email).exists()
-    employee_exists = Employee.objects.filter(
-        employee_user_id__username=candidate_obj.email
-    ).exists()
-
-    if user_exists:
-        messages.error(request, _("User instance with this mail already exists"))
-    elif not employee_exists:
-        try:
-            new_employee = Employee(
-                employee_first_name=candidate_obj.name,
-                email=candidate_obj.email,
-                phone=candidate_obj.mobile,
-                gender=candidate_obj.gender,
-                is_directly_converted=True,
-            )
-            new_employee.save()
-
-            work_info = new_employee.employee_work_info
-            work_info.job_position_id = candidate_obj.job_position_id
-            work_info.department_id = candidate_obj.job_position_id.department_id
-            work_info.company_id = candidate_obj.recruitment_id.company_id
-            work_info.save()
-
-            Document.objects.bulk_create(
-                [
-                    Document(
-                        title=doc.title,
-                        employee_id=new_employee,
-                        document=doc.document,
-                        status=doc.status,
-                        reject_reason=doc.reject_reason,
-                    )
-                    for doc in candidate_obj.candidatedocument_set.all()
-                ]
-            )
-
-            candidate_obj.converted_employee_id = new_employee
-            candidate_obj.save()
-            messages.success(
-                request,
-                _("Candidate has been successfully converted into an employee."),
-            )
-        except IntegrityError:
-            messages.warning(
-                request, _("An error occurred while creating employee data.")
-            )
-
+    new_employee, message = convert_candidate_to_employee(candidate_obj)
+    if new_employee:
+        messages.success(request, message)
     else:
-        messages.info(request, _("An employee with this email already exists"))
+        messages.warning(request, message)
 
     if container_request:
         return JsonResponse({"message": "Success"}, status=200)
