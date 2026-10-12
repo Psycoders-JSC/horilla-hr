@@ -32,18 +32,23 @@
     </p>
     {% endif %}
 
-    {# native: the settings HTMX hijack ignores formaction and would POST back to this page #}
-    <form method="post" class="flex gap-2" data-settings-native="true" hx-boost="false">
-        {% csrf_token %}
-        <button class="oh-btn oh-btn--secondary" formaction="{% url 'mcp-generate' %}"
-            {% if record %}onclick="return confirm('{% trans "This replaces your current token and disconnects every client using it. Continue?" %}')"{% endif %}>
-            {% if record %}{% trans "Regenerate token" %}{% else %}{% trans "Generate token" %}{% endif %}
-        </button>
+    {# One form per action with a real action=: settings JS and the confirm() override both drop formaction. #}
+    <div class="flex gap-2">
+        <form method="post" action="{% url 'mcp-generate' %}" data-settings-native="true" hx-boost="false">
+            {% csrf_token %}
+            <button class="oh-btn oh-btn--secondary"
+                {% if record %}onclick="return confirm('{% trans "This replaces your current token and disconnects every client using it. Continue?" %}')"{% endif %}>
+                {% if record %}{% trans "Regenerate token" %}{% else %}{% trans "Generate token" %}{% endif %}
+            </button>
+        </form>
         {% if record %}
-        <button class="oh-btn oh-btn--danger" formaction="{% url 'mcp-revoke' %}"
-            onclick="return confirm('{% trans "Revoke the token? Every connected client stops working." %}')">{% trans "Revoke" %}</button>
+        <form method="post" action="{% url 'mcp-revoke' %}" data-settings-native="true" hx-boost="false">
+            {% csrf_token %}
+            <button class="oh-btn oh-btn--danger"
+                onclick="return confirm('{% trans "Revoke the token? Every connected client stops working." %}')">{% trans "Revoke" %}</button>
+        </form>
         {% endif %}
-    </form>
+    </div>
 </div>
 
 {% if token %}
