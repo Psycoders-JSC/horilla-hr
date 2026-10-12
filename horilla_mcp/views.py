@@ -64,7 +64,9 @@ def access(request):
     if not can_use_mcp(request.user):
         return HttpResponseForbidden()
     record = McpToken.objects.filter(user=request.user).first()
-    token = record.token if record else None
+    # Fallback: the token just issued, shown once, if it can't be rebuilt from the nonce.
+    fresh = request.session.pop("mcp_fresh_token", None)
+    token = (record.token if record else None) or fresh
     url = _mcp_url(request)
     tools = _tools()
     context = {"record": record, "token": token, "url": url, "tools": tools}
@@ -102,7 +104,7 @@ def access(request):
 def generate(request):
     if not can_use_mcp(request.user):
         return HttpResponseForbidden()
-    McpToken.issue(request.user)
+    request.session["mcp_fresh_token"] = McpToken.issue(request.user)
     return redirect("mcp-access")
 
 
