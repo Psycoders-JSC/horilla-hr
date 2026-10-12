@@ -90,8 +90,9 @@ def access(request):
             ),
             "curl": f'curl -i {url} -H "Authorization: {auth}" -H "Content-Type: application/json" '
             f'-H "Accept: application/json, text/event-stream" '
-            '-d \'{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26",'
-            '"capabilities":{},"clientInfo":{"name":"curl","version":"1"}}}\'',
+            # Escaped double quotes: Windows cmd keeps single quotes literally.
+            r'-d "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2025-03-26\",'
+            r'\"capabilities\":{},\"clientInfo\":{\"name\":\"curl\",\"version\":\"1\"}}}"',
             "prompt": _prompt(url, token, tools),
         }
     return render(request, "horilla_mcp/access.html", context)
