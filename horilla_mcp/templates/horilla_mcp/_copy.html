@@ -1,0 +1,8 @@
+{% load i18n %}
+<div class="mb-3">
+    {% if label %}<p class="text-xs font-semibold mb-1">{{ label }}</p>{% endif %}
+    <div class="relative">
+        <pre id="{{ id }}" class="bg-[#f7f7f7] border border-[#ebebeb] rounded p-2 pr-20 text-xs whitespace-pre-wrap break-all max-h-72 overflow-auto">{{ value }}</pre>
+        <button type="button" class="oh-btn oh-btn--secondary absolute top-1 right-1 !py-1 !px-2 text-xs" onclick="mcpCopy('{{ id }}', this)">{% trans "Copy" %}</button>
+    </div>
+</div>

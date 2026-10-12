@@ -5,47 +5,91 @@
 <div class="mb-4">
     <h4 class="text-base font-semibold text-[#333]">{% trans "MCP Access" %}</h4>
     <p class="text-xs text-gray-500 mt-1">
-        {% trans "Let Claude manage candidates and employees on your behalf. Treat the token like a password." %}
+        {% trans "Connect Claude or any MCP-capable AI assistant to Horilla so it can manage candidates and employees on your behalf, with your permissions. Treat the token like a password." %}
     </p>
 </div>
 
-{% if token %}
+{# --- Token --- #}
 <div class="border border-[#ebebeb] rounded-md p-4 mb-4">
-    <p class="text-sm font-semibold mb-2">{% trans "Your new token (shown once)" %}</p>
-    <div class="flex gap-2 mb-4">
-        <input id="mcpTok" readonly class="oh-input w-full" value="{{ token }}">
-        <button class="oh-btn oh-btn--secondary" onclick="mcpCopy('mcpTok')">{% trans "Copy" %}</button>
-    </div>
+    <p class="text-sm font-semibold mb-2">{% trans "1. Access token" %}</p>
 
-    <p class="text-sm font-semibold mb-1">{% trans "Claude Code" %}</p>
-    <div class="flex gap-2 mb-4">
-        <input id="mcpCli" readonly class="oh-input w-full" value='{{ cli }}'>
-        <button class="oh-btn oh-btn--secondary" onclick="mcpCopy('mcpCli')">{% trans "Copy" %}</button>
+    {% if token %}
+    <div class="flex gap-2 mb-2">
+        <input id="mcpTok" type="password" readonly class="oh-input w-full font-mono" value="{{ token }}">
+        <button type="button" class="oh-btn oh-btn--secondary" onclick="mcpToggle()">{% trans "Show" %}</button>
+        <button type="button" class="oh-btn oh-btn--secondary" onclick="mcpCopy('mcpTok', this)">{% trans "Copy" %}</button>
     </div>
+    {% elif record %}
+    <p class="text-xs text-red-600 mb-2">{% trans "Your current token was created before tokens could be re-displayed. Regenerate it to view it here (the old one stops working)." %}</p>
+    {% else %}
+    <p class="text-xs text-gray-500 mb-2">{% trans "No token yet. Generate one to get connection instructions." %}</p>
+    {% endif %}
 
-    <p class="text-sm font-semibold mb-1">{% trans "claude.ai → Settings → Connectors → Add custom connector (URL)" %}</p>
-    <div class="flex gap-2">
-        <input id="mcpUrl" readonly class="oh-input w-full" value="{{ connector_url }}">
-        <button class="oh-btn oh-btn--secondary" onclick="mcpCopy('mcpUrl')">{% trans "Copy" %}</button>
-    </div>
+    {% if record %}
+    <p class="text-xs text-gray-500 mb-3">
+        {% trans "Created" %}: {{ record.created_at }} ·
+        {% trans "Last used" %}: {% if record.last_used_at %}{{ record.last_used_at }} ({{ record.last_used_at|timesince }} {% trans "ago" %}){% else %}{% trans "never" %}{% endif %}
+    </p>
+    {% endif %}
+
+    <form method="post" class="flex gap-2">
+        {% csrf_token %}
+        <button class="oh-btn oh-btn--secondary" formaction="{% url 'mcp-generate' %}"
+            {% if record %}onclick="return confirm('{% trans "This replaces your current token and disconnects every client using it. Continue?" %}')"{% endif %}>
+            {% if record %}{% trans "Regenerate token" %}{% else %}{% trans "Generate token" %}{% endif %}
+        </button>
+        {% if record %}
+        <button class="oh-btn oh-btn--danger" formaction="{% url 'mcp-revoke' %}"
+            onclick="return confirm('{% trans "Revoke the token? Every connected client stops working." %}')">{% trans "Revoke" %}</button>
+        {% endif %}
+    </form>
+</div>
+
+{% if token %}
+{# --- Connect --- #}
+<div class="border border-[#ebebeb] rounded-md p-4 mb-4">
+    <p class="text-sm font-semibold mb-1">{% trans "2. Connect a client" %}</p>
+    <p class="text-xs text-gray-500 mb-3">{% trans "Server URL" %}: <code>{{ url }}</code></p>
+
+    {% trans "Claude Code (terminal) — run once:" as l %}{% include "horilla_mcp/_copy.html" with id="mcpCli" label=l value=cli %}
+    {% trans "claude.ai / Claude Desktop — Settings → Connectors → Add custom connector, paste this URL:" as l %}{% include "horilla_mcp/_copy.html" with id="mcpUrl" label=l value=connector_url %}
+    {% trans "Cursor, VS Code, Windsurf, project .mcp.json — any client that supports remote HTTP servers with headers:" as l %}{% include "horilla_mcp/_copy.html" with id="mcpJson" label=l value=json_config %}
+    {% trans "Claude Desktop config file (claude_desktop_config.json) or other stdio-only clients — needs Node.js:" as l %}{% include "horilla_mcp/_copy.html" with id="mcpDesk" label=l value=desktop_config %}
+    {% trans "Test the connection — a 200 response with an Mcp-Session-Id header means it works, 401 means a bad token:" as l %}{% include "horilla_mcp/_copy.html" with id="mcpCurl" label=l value=curl %}
+</div>
+
+{# --- Prompt --- #}
+<div class="border border-[#ebebeb] rounded-md p-4 mb-4">
+    <p class="text-sm font-semibold mb-1">{% trans "3. Instructions for your AI assistant" %}</p>
+    <p class="text-xs text-gray-500 mb-3">{% trans "Paste this into Claude (a Project's instructions, CLAUDE.md, or the first message) or any other assistant. It contains your token." %}</p>
+    {% include "horilla_mcp/_copy.html" with id="mcpPrompt" value=prompt %}
 </div>
 {% endif %}
 
-<form method="post" class="flex gap-2">
-    {% csrf_token %}
-    <button class="oh-btn oh-btn--secondary" formaction="{% url 'mcp-generate' %}"
-        {% if has_token and not token %}onclick="return confirm('{% trans "This replaces your current token. Continue?" %}')"{% endif %}>
-        {% if has_token %}{% trans "Regenerate token" %}{% else %}{% trans "Generate token" %}{% endif %}
-    </button>
-    {% if has_token %}
-    <button class="oh-btn oh-btn--danger" formaction="{% url 'mcp-revoke' %}">{% trans "Revoke" %}</button>
-    {% endif %}
-</form>
+{# --- Tools --- #}
+<div class="border border-[#ebebeb] rounded-md p-4">
+    <p class="text-sm font-semibold mb-2">{% trans "Available tools" %} ({{ tools|length }})</p>
+    <table class="w-full text-xs">
+        {% for t in tools %}
+        <tr class="border-t border-[#ebebeb]">
+            <td class="py-1 pr-4 font-mono whitespace-nowrap align-top">{{ t.name }}</td>
+            <td class="py-1 text-gray-600">{{ t.description }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+</div>
 
 <script>
-function mcpCopy(id) {
+function mcpCopy(id, btn) {
     const el = document.getElementById(id);
-    navigator.clipboard.writeText(el.value);
+    navigator.clipboard.writeText(el.value ?? el.textContent);
+    const old = btn.textContent;
+    btn.textContent = "{% trans 'Copied' %}";
+    setTimeout(() => (btn.textContent = old), 1500);
+}
+function mcpToggle() {
+    const el = document.getElementById("mcpTok");
+    el.type = el.type === "password" ? "text" : "password";
 }
 </script>
 {% endblock %}
