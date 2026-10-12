@@ -32,7 +32,8 @@
     </p>
     {% endif %}
 
-    <form method="post" class="flex gap-2">
+    {# native: the settings HTMX hijack ignores formaction and would POST back to this page #}
+    <form method="post" class="flex gap-2" data-settings-native="true" hx-boost="false">
         {% csrf_token %}
         <button class="oh-btn oh-btn--secondary" formaction="{% url 'mcp-generate' %}"
             {% if record %}onclick="return confirm('{% trans "This replaces your current token and disconnects every client using it. Continue?" %}')"{% endif %}>
